@@ -17,8 +17,7 @@
       <div class="header-top">
         <span class="header-label">Planejamento</span>
         <div class="header-actions">
-          <button class="btn-pill" id="btnMonth">OUT ▾</button>
-          <button class="btn-icon" id="btnAdd" title="Adicionar jogador">+</button>
+          <button class="btn-help" id="btnHelp" title="Como funciona">?</button>
         </div>
       </div>
       <h1 class="header-title">PELADEIROS</h1>
@@ -62,62 +61,34 @@
         </div>
       </section>
 
-      <!-- Mini stats -->
-      <section class="card chart-card">
-        <h3 class="card-title">Resumo rápido</h3>
-        <div class="mini-stats" id="miniStats"></div>
-      </section>
+      <!-- Botão adicionar bem visível -->
+      <button class="btn-add-main" id="btnAdd">
+        <span class="btn-add-icon">+</span>
+        <span>Adicionar meu nome</span>
+      </button>
 
-      <!-- How it works (simple for participants) -->
-      <section class="card howto-card">
-        <h3 class="card-title">Como funciona</h3>
-        <div class="howto-steps">
-          <div class="howto-step">
-            <span class="step-num">1</span>
-            <div>
-              <strong>Antes do jogo</strong>
-              <p>Coloque seu nome na <em>Lista de participação</em> (pode ser dias antes).</p>
-            </div>
-          </div>
-          <div class="howto-step">
-            <span class="step-num">2</span>
-            <div>
-              <strong>No dia, no campo</strong>
-              <p>Chegue e toque em <em>“Já estou no campo”</em>. Seu nome entra na <em>Lista de sorteio</em> (por ordem de chegada).</p>
-            </div>
-          </div>
-          <div class="howto-step">
-            <span class="step-num">3</span>
-            <div>
-              <strong>Sorteio</strong>
-              <p>Com 16 no campo, o admin sorteia os 2 times de 8.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Lista de participação (confirmed) -->
-      <section class="list-section">
+      <!-- Lista de participação -->
+      <section class="card list-card">
         <div class="list-header">
           <h2>Lista de participação</h2>
           <span class="list-count" id="confirmedListCount">0</span>
         </div>
-        <p class="list-desc">Quem confirmou que vai jogar (pode confirmar dias antes)</p>
+        <p class="list-desc">Toque no seu nome no dia do jogo para confirmar que chegou no campo</p>
         <div class="list" id="confirmedList"></div>
       </section>
 
-      <!-- Lista de sorteio / ordem de chegada -->
-      <section class="list-section">
+      <!-- Sorteio (ordem de chegada) -->
+      <section class="card list-card">
         <div class="list-header">
-          <h2>Lista de sorteio</h2>
-          <span class="list-count" id="arrivalListCount">0 jogadores</span>
+          <h2>Sorteio</h2>
+          <span class="list-count" id="arrivalListCount">0</span>
         </div>
-        <p class="list-desc">Quem já está no campo — ordem de chegada</p>
+        <p class="list-desc">Ordem de chegada no campo</p>
         <div class="list" id="arrivalList"></div>
       </section>
     </main>
 
-    <!-- Teams Modal / View -->
+    <!-- Teams Modal -->
     <div class="overlay hidden" id="teamsOverlay">
       <div class="teams-panel">
         <div class="teams-header">
@@ -141,11 +112,12 @@
     <!-- Add Player Modal -->
     <div class="overlay hidden" id="addOverlay">
       <div class="modal">
-        <h2>Novo jogador</h2>
-        <input type="text" id="playerNameInput" placeholder="Nome do jogador" maxlength="30" autocomplete="off">
+        <h2>Adicionar meu nome</h2>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Digite seu nome para entrar na lista de participação</p>
+        <input type="text" id="playerNameInput" placeholder="Seu nome" maxlength="30" autocomplete="off">
         <div class="modal-actions">
           <button class="btn-secondary" id="cancelAdd">Cancelar</button>
-          <button class="btn-primary" id="confirmAdd">Adicionar</button>
+          <button class="btn-primary" id="confirmAdd">Confirmar</button>
         </div>
       </div>
     </div>
@@ -153,14 +125,27 @@
     <!-- Player Action Modal -->
     <div class="overlay hidden" id="actionOverlay">
       <div class="modal">
-        <h2 id="actionTitle">Ações</h2>
+        <h2 id="actionTitle">Confirmar chegada</h2>
         <p id="actionPlayerName" class="action-name"></p>
         <div class="modal-actions column">
-          <button class="btn-primary" id="btnConfirmPresence">Entrar na lista de participação</button>
           <button class="btn-accent" id="btnConfirmArrival">Já estou no campo</button>
-          <button class="btn-danger" id="btnRemovePlayer">Remover</button>
+          <button class="btn-danger" id="btnRemovePlayer">Remover da lista</button>
           <button class="btn-secondary" id="cancelAction">Fechar</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Help Modal (discreto) -->
+    <div class="overlay hidden" id="helpOverlay">
+      <div class="modal">
+        <h2>Como funciona</h2>
+        <div class="help-steps">
+          <p><strong>1.</strong> Toque em <em>Adicionar meu nome</em> e entre na lista de participação (pode ser dias antes).</p>
+          <p><strong>2.</strong> No dia do jogo, no campo, toque no <em>seu nome</em> e confirme <em>“Já estou no campo”</em>.</p>
+          <p><strong>3.</strong> Seu nome entra na lista de <em>Sorteio</em> por ordem de chegada.</p>
+          <p><strong>4.</strong> Com 16 no campo, o admin sorteia os times.</p>
+        </div>
+        <button class="btn-primary" id="closeHelp" style="width:100%;margin-top:16px">Entendi</button>
       </div>
     </div>
 
@@ -184,10 +169,6 @@
       <button class="nav-item active" data-tab="home">
         <span class="nav-icon">⚽</span>
         <span>Jogo</span>
-      </button>
-      <button class="nav-item" data-tab="players">
-        <span class="nav-icon">👥</span>
-        <span>Jogadores</span>
       </button>
       <button class="nav-item" data-tab="teams">
         <span class="nav-icon">🎲</span>

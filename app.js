@@ -3,24 +3,21 @@ const STORAGE_KEY = 'peladeiros_itapoa_v1';
 const MIN_PLAYERS = 16;
 const PLAYERS_PER_TEAM = 8;
 
-// Credenciais do administrador
 const ADMIN_USER = 'darlyson.santos';
 const ADMIN_PASS = '40028922';
 
 let isAdminAuthenticated = false;
 
 let state = {
-  players: [],        // { id, name, confirmed, arrivedAt }
-  teams: null,        // { a: [], b: [] } or null
-  matchDate: new Date().toISOString().slice(0, 7) // YYYY-MM
+  players: [],
+  teams: null,
+  matchDate: new Date().toISOString().slice(0, 7)
 };
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      state = JSON.parse(raw);
-    }
+    if (raw) state = JSON.parse(raw);
   } catch (e) {
     console.warn('Erro ao carregar dados', e);
   }
@@ -36,12 +33,7 @@ function generateId() {
 
 // ===================== HELPERS =====================
 function getInitials(name) {
-  return name
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
 function formatTime(iso) {
@@ -62,7 +54,7 @@ function toast(msg) {
   setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-// ===================== CORE LOGIC =====================
+// ===================== CORE =====================
 function getConfirmed() {
   return state.players.filter(p => p.confirmed);
 }
@@ -77,58 +69,44 @@ function addPlayer(name) {
   const trimmed = name.trim();
   if (!trimmed) return false;
   if (state.players.some(p => p.name.toLowerCase() === trimmed.toLowerCase())) {
-    toast('Jogador já existe');
+    toast('Esse nome já está na lista');
     return false;
   }
   state.players.push({
     id: generateId(),
     name: trimmed,
-    confirmed: false,
+    confirmed: true,
     arrivedAt: null
   });
   saveState();
   return true;
 }
 
-function confirmPresence(id) {
-  const p = state.players.find(x => x.id === id);
-  if (!p) return;
-  p.confirmed = true;
-  saveState();
-  toast(`${p.name} confirmou presença!`);
-  render();
-}
-
 function confirmArrival(id) {
   const p = state.players.find(x => x.id === id);
   if (!p) return;
-  if (!p.confirmed) {
-    p.confirmed = true; // auto-confirm if arrives
-  }
+  if (!p.confirmed) p.confirmed = true;
   if (p.arrivedAt) {
-    toast(`${p.name} já está na lista de chegada`);
+    toast(`${p.name} já está na lista de sorteio`);
     return;
   }
   p.arrivedAt = new Date().toISOString();
   saveState();
-  toast(`${p.name} chegou! Posição: ${getArrived().length}`);
+  toast(`${p.name} chegou! Posição #${getArrived().length}`);
   render();
 }
 
 function removePlayer(id) {
   state.players = state.players.filter(p => p.id !== id);
-  // if teams exist and player was in it, clear teams
-  if (state.teams) {
-    state.teams = null;
-  }
+  if (state.teams) state.teams = null;
   saveState();
-  toast('Jogador removido');
+  toast('Removido da lista');
   render();
 }
 
 function drawTeams() {
   if (!isAdminAuthenticated) {
-    toast('Apenas o administrador pode sortear os times');
+    toast('Apenas o administrador pode sortear');
     return;
   }
   const arrived = getArrived();
@@ -136,16 +114,12 @@ function drawTeams() {
     toast(`Precisa de pelo menos ${MIN_PLAYERS} no campo. Atual: ${arrived.length}`);
     return;
   }
-
-  // Pega os primeiros 16 por ordem de chegada
   const selected = arrived.slice(0, MIN_PLAYERS);
-  // Shuffle Fisher-Yates
   const shuffled = [...selected];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-
   state.teams = {
     a: shuffled.slice(0, PLAYERS_PER_TEAM),
     b: shuffled.slice(PLAYERS_PER_TEAM, MIN_PLAYERS)
@@ -157,7 +131,7 @@ function drawTeams() {
 }
 
 function clearMatch() {
-  if (!confirm('Limpar todas as confirmações e chegadas do jogo atual?')) return;
+  if (!confirm('Limpar confirmações e chegadas do jogo atual?')) return;
   state.players.forEach(p => {
     p.confirmed = false;
     p.arrivedAt = null;
@@ -184,120 +158,70 @@ function render() {
   const remaining = Math.max(0, MIN_PLAYERS - arrived.length);
   const percent = Math.min(100, Math.round((arrived.length / MIN_PLAYERS) * 100));
 
-  // Summary
-  document.getElementById('confirmedCount').textContent = confirmed.length;
-  document.getElementById('arrivedCountText').textContent = `${arrived.length} no campo`;
-  document.getElementById('pendingCountText').textContent = remaining > 0
-    ? `${remaining} restantes para o mínimo`
-    : 'Pronto para o sorteio (admin)';
+  const el = (id) => document.getElementById(id);
 
-  // Progress circle
-  document.getElementById('progressPercent').textContent = `${percent}%`;
-  document.getElementById('circleProgress').setAttribute('stroke-dasharray', `${percent}, 100`);
-
-  // Mini stats
-  const mini = document.getElementById('miniStats');
-  mini.innerHTML = `
-    <div class="stat-chip">
-      <div class="num">${confirmed.length}</div>
-      <div class="label">Confirmados</div>
-    </div>
-    <div class="stat-chip">
-      <div class="num">${arrived.length}</div>
-      <div class="label">No campo</div>
-    </div>
-    <div class="stat-chip">
-      <div class="num">${MIN_PLAYERS}</div>
-      <div class="label">Mínimo</div>
-    </div>
-    <div class="stat-chip">
-      <div class="num">${state.teams ? '✓' : '—'}</div>
-      <div class="label">Times</div>
-    </div>
-  `;
-
-  // Arrival list (ordem de chegada)
-  const arrivalList = document.getElementById('arrivalList');
-  document.getElementById('arrivalListCount').textContent = `${arrived.length} jogadores`;
-
-  if (arrived.length === 0) {
-    arrivalList.innerHTML = `<div class="empty">Ninguém no campo ainda.<br>No dia do jogo, toque no seu nome e em “Já estou no campo”.</div>`;
-  } else {
-    arrivalList.innerHTML = arrived.map((p, i) => `
-      <div class="list-item" data-id="${p.id}">
-        <div class="avatar arrived">${i + 1}</div>
-        <div class="item-info">
-          <div class="item-name">${p.name}</div>
-          <div class="item-meta">
-            <span class="badge arrived">No campo</span>
-            <span class="badge">#${i + 1}</span>
-          </div>
-        </div>
-        <div class="item-value time">${formatTime(p.arrivedAt)}</div>
-      </div>
-    `).join('');
+  if (el('confirmedCount')) {
+    el('confirmedCount').textContent = confirmed.length;
+    el('arrivedCountText').textContent = `${arrived.length} no campo`;
+    el('pendingCountText').textContent = remaining > 0
+      ? `${remaining} restantes para o mínimo`
+      : 'Pronto para o sorteio (admin)';
+    el('progressPercent').textContent = `${percent}%`;
+    el('circleProgress')?.setAttribute('stroke-dasharray', `${percent}, 100`);
   }
 
-  // Confirmed list (Lista de participação)
-  const confList = document.getElementById('confirmedList');
-  document.getElementById('confirmedListCount').textContent = confirmed.length;
+  // Lista de participação
+  const confList = el('confirmedList');
+  const confCount = el('confirmedListCount');
+  if (confCount) confCount.textContent = confirmed.length;
 
-  if (confirmed.length === 0) {
-    confList.innerHTML = `<div class="empty">Ninguém na lista ainda.<br>Toque no + e confirme sua participação.</div>`;
-  } else {
-    confList.innerHTML = confirmed.map(p => {
-      const isArrived = !!p.arrivedAt;
-      return `
+  if (confList) {
+    if (confirmed.length === 0) {
+      confList.innerHTML = `<div class="empty">Ninguém na lista ainda.<br>Toque em “Adicionar meu nome”.</div>`;
+    } else {
+      confList.innerHTML = confirmed.map(p => {
+        const isArrived = !!p.arrivedAt;
+        return `
+          <div class="list-item" data-id="${p.id}">
+            <div class="avatar ${isArrived ? 'arrived' : ''}">${getInitials(p.name)}</div>
+            <div class="item-info">
+              <div class="item-name">${p.name}</div>
+              <div class="item-meta">
+                ${isArrived
+                  ? '<span class="badge arrived">No campo</span>'
+                  : '<span class="badge pending">Toque para confirmar chegada</span>'}
+              </div>
+            </div>
+            <div class="item-value">${isArrived ? '✓' : ''}</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Sorteio (ordem de chegada)
+  const arrivalList = el('arrivalList');
+  const arrivalCount = el('arrivalListCount');
+  if (arrivalCount) arrivalCount.textContent = arrived.length;
+
+  if (arrivalList) {
+    if (arrived.length === 0) {
+      arrivalList.innerHTML = `<div class="empty">Aguardando chegadas no campo.</div>`;
+    } else {
+      arrivalList.innerHTML = arrived.map((p, i) => `
         <div class="list-item" data-id="${p.id}">
-          <div class="avatar ${isArrived ? 'arrived' : ''}">${getInitials(p.name)}</div>
+          <div class="avatar arrived">${i + 1}</div>
           <div class="item-info">
             <div class="item-name">${p.name}</div>
-            <div class="item-meta">
-              <span class="badge confirmed">Participando</span>
-              ${isArrived ? '<span class="badge arrived">No campo</span>' : '<span class="badge pending">Aguardando chegada</span>'}
-            </div>
           </div>
-          <div class="item-value">${isArrived ? '✓' : '…'}</div>
+          <div class="item-value time">${formatTime(p.arrivedAt)}</div>
         </div>
-      `;
-    }).join('');
+      `).join('');
+    }
   }
 
-  // Attach click handlers to list items
-  document.querySelectorAll('.list-item[data-id]').forEach(el => {
-    el.addEventListener('click', () => openActionModal(el.dataset.id));
-  });
-}
-
-function renderPlayersTab() {
-  const main = document.getElementById('mainContent');
-  const all = state.players;
-
-  main.innerHTML = `
-    <section class="list-section">
-      <div class="list-header">
-        <h2>Todos os jogadores</h2>
-        <span class="list-count">${all.length}</span>
-      </div>
-      ${all.length === 0
-        ? `<div class="empty">Nenhum jogador cadastrado.<br>Toque no + para adicionar.</div>`
-        : `<div class="players-grid">
-            ${all.map(p => `
-              <div class="player-card" data-id="${p.id}">
-                <div class="avatar ${p.arrivedAt ? 'arrived' : ''}">${getInitials(p.name)}</div>
-                <div class="name">${p.name}</div>
-                <div class="item-meta" style="justify-content:center">
-                  ${p.confirmed ? '<span class="badge confirmed">Confirmado</span>' : '<span class="badge">Sem confirmação</span>'}
-                </div>
-              </div>
-            `).join('')}
-          </div>`
-      }
-    </section>
-  `;
-
-  document.querySelectorAll('.player-card[data-id]').forEach(el => {
-    el.addEventListener('click', () => openActionModal(el.dataset.id));
+  document.querySelectorAll('.list-item[data-id]').forEach(item => {
+    item.addEventListener('click', () => openActionModal(item.dataset.id));
   });
 }
 
@@ -309,8 +233,8 @@ function renderAdminTab() {
   main.innerHTML = `
     <div class="admin-card">
       <h3>Status do jogo</h3>
-      <div class="info-row"><span>Confirmados</span><span>${confirmed.length}</span></div>
-      <div class="info-row"><span>No campo</span><span>${arrived.length}</span></div>
+      <div class="info-row"><span>Na participação</span><span>${confirmed.length}</span></div>
+      <div class="info-row"><span>No campo (sorteio)</span><span>${arrived.length}</span></div>
       <div class="info-row"><span>Mínimo para sorteio</span><span>${MIN_PLAYERS}</span></div>
       <div class="info-row"><span>Times sorteados</span><span>${state.teams ? 'Sim' : 'Não'}</span></div>
     </div>
@@ -323,17 +247,6 @@ function renderAdminTab() {
         <button class="btn-secondary" id="adminResetMatch">Resetar jogo atual</button>
         <button class="btn-danger" id="adminClearAll">Apagar todos os dados</button>
       </div>
-    </div>
-
-    <div class="admin-card">
-      <h3>Como funciona</h3>
-      <p style="font-size:13px;color:var(--text-secondary);line-height:1.5">
-        1. Adicione os jogadores com o botão +<br>
-        2. Cada um confirma presença no jogo<br>
-        3. Ao chegar no campo, confirma “Já estou no campo”<br>
-        4. A lista de chegada é ordenada automaticamente<br>
-        5. Quando houver pelo menos ${MIN_PLAYERS} no campo, o <strong>administrador</strong> realiza o sorteio manual dos times (2 times de ${PLAYERS_PER_TEAM})
-      </p>
     </div>
 
     <div class="admin-card">
@@ -360,8 +273,8 @@ function renderTeamsTab() {
       <div class="card" style="text-align:center;padding:40px 20px">
         <div style="font-size:48px;margin-bottom:12px">🎲</div>
         <h2 style="margin-bottom:8px">Nenhum time sorteado</h2>
-        <p style="color:var(--text-secondary);font-size:14px;margin-bottom:20px">
-          O sorteio é feito manualmente pelo administrador quando houver pelo menos ${MIN_PLAYERS} jogadores no campo.
+        <p style="color:var(--text-secondary);font-size:14px">
+          O admin sorteia quando houver pelo menos ${MIN_PLAYERS} jogadores no campo.
         </p>
       </div>
     `;
@@ -401,6 +314,66 @@ function renderTeamsTab() {
   });
 }
 
+function getHomeHTML() {
+  return `
+    <section class="card match-info-card">
+      <div class="match-badge">PRÓXIMA PELADA</div>
+      <div class="match-date">Sábado, 03 de outubro</div>
+      <div class="match-time">⏰ 08:00</div>
+      <div class="match-place">📍 Itapoã Parque</div>
+    </section>
+
+    <section class="card summary-card">
+      <div class="summary-left">
+        <span class="summary-label">PARTICIPANTES</span>
+        <div class="summary-value" id="confirmedCount">0</div>
+        <span class="summary-sub">na lista de participação</span>
+        <div class="summary-status">
+          <span class="dot green"></span>
+          <span id="arrivedCountText">0 no campo</span>
+        </div>
+        <div class="summary-status">
+          <span class="dot orange"></span>
+          <span id="pendingCountText">0 restantes para o mínimo</span>
+        </div>
+      </div>
+      <div class="progress-circle" id="progressCircle">
+        <svg viewBox="0 0 36 36">
+          <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          <path class="circle-progress" id="circleProgress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+        </svg>
+        <div class="progress-text">
+          <span id="progressPercent">0%</span>
+          <small>chegada</small>
+        </div>
+      </div>
+    </section>
+
+    <button class="btn-add-main" id="btnAdd">
+      <span class="btn-add-icon">+</span>
+      <span>Adicionar meu nome</span>
+    </button>
+
+    <section class="card list-card">
+      <div class="list-header">
+        <h2>Lista de participação</h2>
+        <span class="list-count" id="confirmedListCount">0</span>
+      </div>
+      <p class="list-desc">Toque no seu nome no dia do jogo para confirmar que chegou no campo</p>
+      <div class="list" id="confirmedList"></div>
+    </section>
+
+    <section class="card list-card">
+      <div class="list-header">
+        <h2>Sorteio</h2>
+        <span class="list-count" id="arrivalListCount">0</span>
+      </div>
+      <p class="list-desc">Ordem de chegada no campo</p>
+      <div class="list" id="arrivalList"></div>
+    </section>
+  `;
+}
+
 // ===================== MODALS =====================
 let currentActionId = null;
 
@@ -410,6 +383,18 @@ function openActionModal(id) {
   if (!p) return;
 
   document.getElementById('actionPlayerName').textContent = p.name;
+
+  const arrivalBtn = document.getElementById('btnConfirmArrival');
+  if (p.arrivedAt) {
+    arrivalBtn.textContent = 'Já confirmou chegada ✓';
+    arrivalBtn.disabled = true;
+    arrivalBtn.style.opacity = '0.5';
+  } else {
+    arrivalBtn.textContent = 'Já estou no campo';
+    arrivalBtn.disabled = false;
+    arrivalBtn.style.opacity = '1';
+  }
+
   document.getElementById('actionOverlay').classList.remove('hidden');
 }
 
@@ -423,23 +408,22 @@ function showTeams() {
     toast('Nenhum time sorteado ainda');
     return;
   }
-  const a = document.getElementById('teamA');
-  const b = document.getElementById('teamB');
-  a.innerHTML = state.teams.a.map((p, i) => `<li><span>${i + 1}.</span>${p.name}</li>`).join('');
-  b.innerHTML = state.teams.b.map((p, i) => `<li><span>${i + 1}.</span>${p.name}</li>`).join('');
+  document.getElementById('teamA').innerHTML = state.teams.a.map((p, i) =>
+    `<li><span>${i + 1}.</span>${p.name}</li>`).join('');
+  document.getElementById('teamB').innerHTML = state.teams.b.map((p, i) =>
+    `<li><span>${i + 1}.</span>${p.name}</li>`).join('');
   document.getElementById('teamsOverlay').classList.remove('hidden');
 }
 
-// ===================== NAV & EVENTS =====================
+// ===================== NAV =====================
 function switchTab(tab) {
-  // Protege a aba Admin com login
   if (tab === 'admin' && !isAdminAuthenticated) {
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
     document.getElementById('loginError').style.display = 'none';
     document.getElementById('loginOverlay').classList.remove('hidden');
     setTimeout(() => document.getElementById('loginUser').focus(), 100);
-    return; // não muda a aba ainda
+    return;
   }
 
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -448,98 +432,21 @@ function switchTab(tab) {
   const main = document.getElementById('mainContent');
 
   if (tab === 'home') {
-    main.innerHTML = `
-      <section class="card match-info-card">
-        <div class="match-badge">PRÓXIMA PELADA</div>
-        <div class="match-date">Sábado, 03 de outubro</div>
-        <div class="match-time">⏰ 08:00</div>
-        <div class="match-place">📍 Itapoã Parque</div>
-      </section>
-
-      <section class="card summary-card">
-        <div class="summary-left">
-          <span class="summary-label">PARTICIPANTES</span>
-          <div class="summary-value" id="confirmedCount">0</div>
-          <span class="summary-sub">na lista de participação</span>
-          <div class="summary-status">
-            <span class="dot green"></span>
-            <span id="arrivedCountText">0 no campo</span>
-          </div>
-          <div class="summary-status">
-            <span class="dot orange"></span>
-            <span id="pendingCountText">0 restantes para o mínimo</span>
-          </div>
-        </div>
-        <div class="progress-circle" id="progressCircle">
-          <svg viewBox="0 0 36 36">
-            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-            <path class="circle-progress" id="circleProgress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-          </svg>
-          <div class="progress-text">
-            <span id="progressPercent">0%</span>
-            <small>chegada</small>
-          </div>
-        </div>
-      </section>
-
-      <section class="card chart-card">
-        <h3 class="card-title">Resumo rápido</h3>
-        <div class="mini-stats" id="miniStats"></div>
-      </section>
-
-      <section class="card howto-card">
-        <h3 class="card-title">Como funciona</h3>
-        <div class="howto-steps">
-          <div class="howto-step">
-            <span class="step-num">1</span>
-            <div>
-              <strong>Antes do jogo</strong>
-              <p>Coloque seu nome na <em>Lista de participação</em> (pode ser dias antes).</p>
-            </div>
-          </div>
-          <div class="howto-step">
-            <span class="step-num">2</span>
-            <div>
-              <strong>No dia, no campo</strong>
-              <p>Chegue e toque em <em>“Já estou no campo”</em>. Seu nome entra na <em>Lista de sorteio</em> (por ordem de chegada).</p>
-            </div>
-          </div>
-          <div class="howto-step">
-            <span class="step-num">3</span>
-            <div>
-              <strong>Sorteio</strong>
-              <p>Com 16 no campo, o admin sorteia os 2 times de 8.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="list-section">
-        <div class="list-header">
-          <h2>Lista de participação</h2>
-          <span class="list-count" id="confirmedListCount">0</span>
-        </div>
-        <p class="list-desc">Quem confirmou que vai jogar (pode confirmar dias antes)</p>
-        <div class="list" id="confirmedList"></div>
-      </section>
-
-      <section class="list-section">
-        <div class="list-header">
-          <h2>Lista de sorteio</h2>
-          <span class="list-count" id="arrivalListCount">0 jogadores</span>
-        </div>
-        <p class="list-desc">Quem já está no campo — ordem de chegada</p>
-        <div class="list" id="arrivalList"></div>
-      </section>
-    `;
+    main.innerHTML = getHomeHTML();
+    // re-bind add button
+    document.getElementById('btnAdd')?.addEventListener('click', openAddModal);
     render();
-  } else if (tab === 'players') {
-    renderPlayersTab();
   } else if (tab === 'teams') {
     renderTeamsTab();
   } else if (tab === 'admin') {
     renderAdminTab();
   }
+}
+
+function openAddModal() {
+  document.getElementById('playerNameInput').value = '';
+  document.getElementById('addOverlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('playerNameInput').focus(), 100);
 }
 
 function initEvents() {
@@ -548,12 +455,8 @@ function initEvents() {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
 
-  // Add player
-  document.getElementById('btnAdd').addEventListener('click', () => {
-    document.getElementById('playerNameInput').value = '';
-    document.getElementById('addOverlay').classList.remove('hidden');
-    setTimeout(() => document.getElementById('playerNameInput').focus(), 100);
-  });
+  // Add player (header may not exist; main button is re-bound on tab switch)
+  document.getElementById('btnAdd')?.addEventListener('click', openAddModal);
 
   document.getElementById('cancelAdd').addEventListener('click', () => {
     document.getElementById('addOverlay').classList.add('hidden');
@@ -563,10 +466,10 @@ function initEvents() {
     const name = document.getElementById('playerNameInput').value;
     if (addPlayer(name)) {
       document.getElementById('addOverlay').classList.add('hidden');
-      toast(`${name.trim()} adicionado`);
-      // re-render current tab
+      toast(`${name.trim()} entrou na lista!`);
       const active = document.querySelector('.nav-item.active')?.dataset.tab || 'home';
-      switchTab(active);
+      if (active === 'home') render();
+      else switchTab(active);
     }
   });
 
@@ -577,21 +480,24 @@ function initEvents() {
   // Action modal
   document.getElementById('cancelAction').addEventListener('click', closeActionModal);
 
-  document.getElementById('btnConfirmPresence').addEventListener('click', () => {
-    if (currentActionId) confirmPresence(currentActionId);
-    closeActionModal();
-  });
-
   document.getElementById('btnConfirmArrival').addEventListener('click', () => {
     if (currentActionId) confirmArrival(currentActionId);
     closeActionModal();
   });
 
   document.getElementById('btnRemovePlayer').addEventListener('click', () => {
-    if (currentActionId && confirm('Remover este jogador?')) {
+    if (currentActionId && confirm('Remover este nome da lista?')) {
       removePlayer(currentActionId);
       closeActionModal();
     }
+  });
+
+  // Help
+  document.getElementById('btnHelp')?.addEventListener('click', () => {
+    document.getElementById('helpOverlay').classList.remove('hidden');
+  });
+  document.getElementById('closeHelp')?.addEventListener('click', () => {
+    document.getElementById('helpOverlay').classList.add('hidden');
   });
 
   // Teams overlay
@@ -608,7 +514,7 @@ function initEvents() {
     drawTeams();
   });
 
-  // Login admin
+  // Login
   document.getElementById('cancelLogin').addEventListener('click', () => {
     document.getElementById('loginOverlay').classList.add('hidden');
   });
@@ -635,7 +541,7 @@ function initEvents() {
     if (e.key === 'Enter') document.getElementById('loginPass').focus();
   });
 
-  // Close overlays on backdrop click
+  // Backdrop close
   document.querySelectorAll('.overlay').forEach(ov => {
     ov.addEventListener('click', e => {
       if (e.target === ov) ov.classList.add('hidden');
