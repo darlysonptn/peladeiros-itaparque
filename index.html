@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>PELADEIROS - ITAPOÃ PARQUE</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <span class="header-label">Planejamento</span>
+        <div class="header-actions">
+          <button class="btn-pill" id="btnMonth">OUT ▾</button>
+          <button class="btn-icon" id="btnAdd" title="Adicionar jogador">+</button>
+        </div>
+      </div>
+      <h1 class="header-title">PELADEIROS</h1>
+      <p class="header-subtitle">ITAPOÃ PARQUE</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main" id="mainContent">
+      <!-- Match Info Card -->
+      <section class="card match-info-card">
+        <div class="match-badge">PRÓXIMA PELADA</div>
+        <div class="match-date">Sábado, 03 de outubro</div>
+        <div class="match-time">⏰ 08:00</div>
+        <div class="match-place">📍 Itapoã Parque</div>
+      </section>
+
+      <!-- Summary Card -->
+      <section class="card summary-card">
+        <div class="summary-left">
+          <span class="summary-label">PARTICIPANTES</span>
+          <div class="summary-value" id="confirmedCount">0</div>
+          <span class="summary-sub">na lista de participação</span>
+          <div class="summary-status">
+            <span class="dot green"></span>
+            <span id="arrivedCountText">0 no campo</span>
+          </div>
+          <div class="summary-status">
+            <span class="dot orange"></span>
+            <span id="pendingCountText">0 restantes para o mínimo</span>
+          </div>
+        </div>
+        <div class="progress-circle" id="progressCircle">
+          <svg viewBox="0 0 36 36">
+            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            <path class="circle-progress" id="circleProgress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          </svg>
+          <div class="progress-text">
+            <span id="progressPercent">0%</span>
+            <small>chegada</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mini stats -->
+      <section class="card chart-card">
+        <h3 class="card-title">Resumo rápido</h3>
+        <div class="mini-stats" id="miniStats"></div>
+      </section>
+
+      <!-- How it works (simple for participants) -->
+      <section class="card howto-card">
+        <h3 class="card-title">Como funciona</h3>
+        <div class="howto-steps">
+          <div class="howto-step">
+            <span class="step-num">1</span>
+            <div>
+              <strong>Antes do jogo</strong>
+              <p>Coloque seu nome na <em>Lista de participação</em> (pode ser dias antes).</p>
+            </div>
+          </div>
+          <div class="howto-step">
+            <span class="step-num">2</span>
+            <div>
+              <strong>No dia, no campo</strong>
+              <p>Chegue e toque em <em>“Já estou no campo”</em>. Seu nome entra na <em>Lista de sorteio</em> (por ordem de chegada).</p>
+            </div>
+          </div>
+          <div class="howto-step">
+            <span class="step-num">3</span>
+            <div>
+              <strong>Sorteio</strong>
+              <p>Com 16 no campo, o admin sorteia os 2 times de 8.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Lista de participação (confirmed) -->
+      <section class="list-section">
+        <div class="list-header">
+          <h2>Lista de participação</h2>
+          <span class="list-count" id="confirmedListCount">0</span>
+        </div>
+        <p class="list-desc">Quem confirmou que vai jogar (pode confirmar dias antes)</p>
+        <div class="list" id="confirmedList"></div>
+      </section>
+
+      <!-- Lista de sorteio / ordem de chegada -->
+      <section class="list-section">
+        <div class="list-header">
+          <h2>Lista de sorteio</h2>
+          <span class="list-count" id="arrivalListCount">0 jogadores</span>
+        </div>
+        <p class="list-desc">Quem já está no campo — ordem de chegada</p>
+        <div class="list" id="arrivalList"></div>
+      </section>
+    </main>
+
+    <!-- Teams Modal / View -->
+    <div class="overlay hidden" id="teamsOverlay">
+      <div class="teams-panel">
+        <div class="teams-header">
+          <h2>Times Sorteados</h2>
+          <button class="btn-close" id="closeTeams">✕</button>
+        </div>
+        <div class="teams-grid">
+          <div class="team team-a">
+            <h3>Time A</h3>
+            <ul id="teamA"></ul>
+          </div>
+          <div class="team team-b">
+            <h3>Time B</h3>
+            <ul id="teamB"></ul>
+          </div>
+        </div>
+        <button class="btn-primary" id="btnRedraw">Sortear novamente</button>
+      </div>
+    </div>
+
+    <!-- Add Player Modal -->
+    <div class="overlay hidden" id="addOverlay">
+      <div class="modal">
+        <h2>Novo jogador</h2>
+        <input type="text" id="playerNameInput" placeholder="Nome do jogador" maxlength="30" autocomplete="off">
+        <div class="modal-actions">
+          <button class="btn-secondary" id="cancelAdd">Cancelar</button>
+          <button class="btn-primary" id="confirmAdd">Adicionar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Action Modal -->
+    <div class="overlay hidden" id="actionOverlay">
+      <div class="modal">
+        <h2 id="actionTitle">Ações</h2>
+        <p id="actionPlayerName" class="action-name"></p>
+        <div class="modal-actions column">
+          <button class="btn-primary" id="btnConfirmPresence">Entrar na lista de participação</button>
+          <button class="btn-accent" id="btnConfirmArrival">Já estou no campo</button>
+          <button class="btn-danger" id="btnRemovePlayer">Remover</button>
+          <button class="btn-secondary" id="cancelAction">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Modal (Admin) -->
+    <div class="overlay hidden" id="loginOverlay">
+      <div class="modal">
+        <h2>Área do Administrador</h2>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Digite usuário e senha para continuar</p>
+        <input type="text" id="loginUser" placeholder="Usuário" autocomplete="username">
+        <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password" style="margin-top:10px">
+        <p id="loginError" style="color:var(--red);font-size:13px;margin:8px 0 0;display:none">Usuário ou senha incorretos</p>
+        <div class="modal-actions" style="margin-top:20px">
+          <button class="btn-secondary" id="cancelLogin">Cancelar</button>
+          <button class="btn-primary" id="confirmLogin">Entrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-tab="home">
+        <span class="nav-icon">⚽</span>
+        <span>Jogo</span>
+      </button>
+      <button class="nav-item" data-tab="players">
+        <span class="nav-icon">👥</span>
+        <span>Jogadores</span>
+      </button>
+      <button class="nav-item" data-tab="teams">
+        <span class="nav-icon">🎲</span>
+        <span>Times</span>
+      </button>
+      <button class="nav-item" data-tab="admin">
+        <span class="nav-icon">⚙️</span>
+        <span>Admin</span>
+      </button>
+    </nav>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
